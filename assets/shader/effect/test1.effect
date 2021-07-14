@@ -1,0 +1,279 @@
+// Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.  
+
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs
+      frag: fs
+      blendState:
+        targets:
+        - blend: true
+      rasterizerState:
+        cullMode: none
+      properties:
+        texture: { value: white }
+        alphaThreshold: { value: 0.5 }
+        amplitude: {value: 0.2}
+        angularSpeed: {value: 3.0}
+        moveSpeed: {value: 5.0}
+        detaY: {value : 0}
+
+        beginColor: { value: [255,255,255,255] , editor: {type: color} }
+        endColor: { value: [255,255,255,255] , editor: {type: color} }
+        
+
+        cutValue : {value : 0.9}
+        size: { value: [500.0, 500.0], editor: { tooltip: '节点尺寸' } }
+        # offset: { value: [ 0.0, 1.0, 2.0, 3.0, 4.0] }
+        # weight: { value: [ 0.2270270270, 0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162] }
+        
+        # weight: { value: [ 0.2270270270, 0.1945945946, 0.1216216216, 0.0540540541] }
+        # offset: { value: [ 0.0, 1.0, 2.0, 3.0] }
+        texture2: { value: white }
+        texture_polygon : { value: white }
+}%
+
+
+CCProgram vs %{
+  precision highp float;
+
+  #include <cc-global>
+  #include <cc-local>
+
+  in vec3 a_position;
+  in vec4 a_color;
+  out vec4 v_color;
+
+  #if USE_TEXTURE
+  in vec2 a_uv0;
+  out vec2 v_uv0;
+  #endif
+
+  void main () {
+    vec4 pos = vec4(a_position, 1);
+
+    #if CC_USE_MODEL
+    pos = cc_matViewProj * cc_matWorld * pos;
+    #else
+    pos = cc_matViewProj * pos;
+    #endif
+
+    #if USE_TEXTURE
+    v_uv0 = a_uv0; 
+    #endif
+
+    v_color = a_color;
+
+    gl_Position = pos;
+  }
+}%
+
+
+CCProgram fs %{
+  precision highp float;
+  
+  #include <alpha-test>
+  #include <texture>
+
+  #include <cc-global>
+  #include <cc-local>
+
+  in vec4 v_color;
+
+  #if USE_TEXTURE
+  in vec2 v_uv0;
+  uniform sampler2D texture;
+  uniform sampler2D texture2;
+  uniform sampler2D texture_polygon;
+  #endif 
+
+  #if USE_COLOR
+  uniform color{
+    vec4 beginColor;
+    vec4 endColor;
+  };
+  #endif
+  
+  #if USE_DYNAMIC
+  uniform global{
+    float amplitude;
+    float angularSpeed;
+    float moveSpeed;
+    float detaY;
+    int is_water = 0;
+  };
+  #endif
+
+  uniform img{
+    vec2 size;
+    float cutValue; 
+    // float[] offset = [ 0.0, 1.0, 2.0, 3.0, 4.0 ];
+    // float[] weight = [ 0.2270270270, 0.1945945946, 0.1216216216,
+    //                                0.0540540541, 0.0162162162 ];
+  };
+
+  // uniform myData{
+  //   // mat4 weight[1] = [ 0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162 ];
+  //   // mat4 offset[1] = [ 1.0, 2.0, 3.0, 4.0];
+  // };
+  
+  // buffer float blurSumInout;
+  vec2 pixelateIt (vec2 pos , float size){//马赛克
+      pos.x = (pos.x-mod(pos.x,size)) + (size/2.0);
+      pos.y = (pos.y-mod(pos.y,size)) + (size/2.0);
+      return pos;
+  }
+
+  // 随机值
+	float rand(vec2 co) {
+		  return fract(sin(dot(co.xy , vec2(12.9898, 78.233))) * 43758.5453);
+	}
+
+  // // 获取模糊颜色
+  // vec4 getBlurColor (vec2 pos ) {
+  //     vec4 color = vec4(0); // 初始颜色
+  //     float sum = 0.0; // 总权重
+      
+  //     // 这个地方的RADIUS一定要是const类型的
+  //     const float RADIUS = 10.0;
+  //     // //卷积过程
+  //     // for (float r = -RADIUS; r <= RADIUS; r++) { // 水平方向
+  //     //   for (float c = -RADIUS; c <= RADIUS; c++) { // 垂直方向
+  //     //     vec2 target = pos + vec2(r / size.x, c / size.y); // 目标像素位置
+  //     //     float weight = (RADIUS - abs(r)) * (RADIUS - abs(c)); // 计算权重
+  //     //     color += texture2D(texture, target) * weight; // 累加颜色
+  //     //     sum += weight; // 累加权重
+  //     //   }
+  //     // }
+  //     for (float r = -RADIUS; r <= RADIUS; r++) { // 水平方向
+  //         vec2 target = pos + vec2(r / size.x, r / size.y); // 目标像素位置
+  //         float weight = (RADIUS - abs(r)) * (RADIUS - abs(r)); // 计算权重
+  //         color += texture2D(texture, target) * weight; // 累加颜色
+  //         sum += weight; // 累加权重
+  //     }
+  //     color /= sum; // 求出平均值
+  //     return color;
+  // }
+
+  // 获取模糊颜色
+  vec4 getBlurColor (vec2 uv, vec4 a_color ) {
+    vec4 color = vec4(0);
+
+    mat4 offset = mat4(vec4(1.0, 2.0, 3.0, 4.0), vec4(0), vec4(0), vec4(0));
+    mat4 weight = mat4(vec4(0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162), vec4(0), vec4(0), vec4(0));
+    const int index = 4;
+    // mat2 offset = mat2( vec2(1.3846153846, 3.2307692308), vec2(0));
+    // mat2 weight = mat2( vec2(0.3162162162, 0.0702702703), vec2(0));
+    // const int index = 2;
+    color = texture2D( texture, uv ) * 0.2270270270;
+    vec2 pos = vec2(1.0, 1.0) * 0.004; // 目标像素位置
+    for (int i = 0; i < index; i++) {
+        color += texture2D( texture, uv + pos * offset[0][i] ) * weight[0][i];
+        color += texture2D( texture, uv - pos * offset[0][i] ) * weight[0][i];
+    }
+    return a_color * color;
+  }
+
+  void main () {
+    vec4 o = vec4(1, 1, 1, 1);
+    vec4 a_color = v_color;
+    vec2 uv = v_uv0;
+
+    // if(uv.x == 0.0 && uv.y == 0.0){
+    //     blurSumInout = getBlurColorSum();
+    // }
+    // a_color = getBlurColor(uv);
+    // a_color = getBlurColor(uv,a_color);
+    // uv = pixelateIt(uv, 0.01); 
+
+    #if USE_TEXTURE
+      #if USE_DYNAMIC
+      // // 波浪运动
+      // if(moveSpeed == 0.0){
+      //   uv.y  = uv.y + amplitude *sin(angularSpeed * 3.14 * uv.x) + detaY;   
+      // }else{
+      //   uv.y  = uv.y + amplitude *sin(angularSpeed * 3.14 * uv.x)*sin(moveSpeed*cc_time.x) +detaY ;
+      // }
+
+      // //横向弹簧运动
+      // uv.x =  (sin( cc_time.x)/2.0)  + uv.x ;
+
+      // //单峰波浪
+      // if(uv.x >  abs(sin( cc_time.x))-0.1 && uv.x <  abs(sin( cc_time.x))+0.1 ) {
+      //     uv.y = uv.y +  abs( abs(sin( cc_time.x)) -uv.x ) ;
+      // }
+      #endif
+
+      #if USE_COLOR
+      // float sinTimeX = sin(3.0*cc_time.x);
+      // a_color = beginColor + (endColor-beginColor)*( (uv.x+uv.y)/2.0 + sinTimeX);
+      // uv.y = uv.y + 0.2 *sin( 6.28 * uv.x)*sinTimeX;
+      
+      // // 交错扫光效果
+      // float cross1 = abs( abs(sin(cc_time.x)) - (uv.x+uv.y)/2.0 );
+      // float cross2 = abs( abs(sin(cc_time.x)) - (1.0-uv.x+uv.y)/2.0 );
+      // if(  cross1 <0.05 ) {
+      //   a_color =  endColor  ;
+      // }else if(cross2 <0.05){
+      //   a_color = beginColor ;
+      // }
+
+      // if( abs( tan(cc_time.x) - (uv.x+uv.y)/2.0 ) <0.05 ) { a_color = endColor ; }
+      #endif
+
+      if(is_water == 1){
+          if(uv.y > 0.4 + sin(uv.x * 12.35+ cc_time.x)*0.02 ) {
+              uv.y = uv.y - sin(uv.x*12.35+ cc_time.x)*0.02;
+              //定义水波颜色
+              vec4 waterColor = vec4(2,199,255,255);
+                //在shader中计算要进行归一化
+                a_color = (normalize(waterColor)+a_color)/2.0;     
+          }
+      }
+      
+        // if(uv.y<=0.5) {
+        //   uv.y = uv.y *2.0;
+        // }else{
+        //   uv.y = (1.0- uv.y)*2.0;
+        // }
+
+        //  float dis =  distance(uv*size,vec2(0.5,0.5)*size );
+        // if(dis>200.0){
+        //   discard;
+        // }
+
+       if(is_water == 1){
+        // vec4 a = vec4(1,1,1,1);
+        //   a *= texture2D(texture_polygon,uv);
+        //   float x_POLYGON = 0.05;
+        //   if( a.b<x_POLYGON && a.r<x_POLYGON && a.g<x_POLYGON){
+        //     o*= texture2D(texture,uv );
+        //   }else{
+        //     discard;
+        //   }
+       }
+      
+      CCTexture(texture, uv, o);
+
+      // if(o.r >cutValue && o.b>cutValue && o.g>cutValue ) {
+      //     discard;
+      // }
+
+      // vec4 a = vec4(1,1,1,1);
+      // a = vec4(1,1,1,1);
+      // a *= texture2D(texture2, uv);
+
+      // if(a.r < abs(sin(cc_time.x)) ) {
+      //     discard;
+      // }
+         
+    #endif
+
+    // o *= v_color;
+    o *= a_color;
+
+    ALPHA_TEST(o);
+
+    gl_FragColor = o;
+  }
+}%

@@ -1,0 +1,52 @@
+{
+  "__type__": "cc.Material",
+  "_name": "test1",
+  "_objFlags": 0,
+  "_native": "",
+  "_effectAsset": {
+    "__uuid__": "d7ee6aea-a372-46fc-80e4-a1ab640a5d26"
+  },
+  "_techniqueIndex": 0,
+  "_techniqueData": {
+    "0": {
+      "props": {
+        "beginColor": {
+          "__type__": "cc.Color",
+          "r": 255,
+          "g": 255,
+          "b": 0,
+          "a": 255
+        },
+        "endColor": {
+          "__type__": "cc.Color",
+          "r": 0,
+          "g": 255,
+          "b": 255,
+          "a": 255
+        },
+        "cutValue": 0.9,
+        "size": {
+          "__type__": "cc.Vec2",
+          "x": 500,
+          "y": 417
+        },
+        "texture": {
+          "__uuid__": "6e056173-d285-473c-b206-40a7fff5386e"
+        },
+        "texture2": {
+          "__uuid__": "fb48ee50-7cd6-4654-be6c-037d0d813bef"
+        },
+        "texture_polygon": {
+          "__uuid__": "76aba0c1-1f19-4705-acd2-c28c7b2dd2e7"
+        }
+      },
+      "defines": {
+        "USE_TEXTURE": true,
+        "INPUT_IS_GAMMA": false,
+        "USE_COLOR": true,
+        "USE_DYNAMIC": true,
+        "USE_ALPHA_TEST": false
+      }
+    }
+  }
+}

@@ -1,23 +1,20 @@
 {
   "__type__": "cc.Material",
-  "_name": "print",
+  "_name": "cutscene",
   "_objFlags": 0,
   "_native": "",
   "_effectAsset": {
-    "__uuid__": "c51c05f5-9850-46e7-8662-1efd8e8ec1a3"
+    "__uuid__": "6f292f65-8c1b-4e3f-be83-8676f180a4c2"
   },
   "_techniqueIndex": 0,
   "_techniqueData": {
     "0": {
-      "props": {
-        "runTime": 5,
-        "width": 500,
-        "rows": 1
-      },
       "defines": {
         "USE_TEXTURE": true,
         "LOCK_TIME": true,
-        "LOCK_SPEED": false
+        "LOCK_SPEED": true,
+        "INPUT_IS_GAMMA": false,
+        "USE_ALPHA_TEST": false
       }
     }
   }

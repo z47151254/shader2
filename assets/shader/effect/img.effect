@@ -182,8 +182,6 @@ CCProgram fs %{
 
       }
 
-
-
       // color.a = texture2D(texture, pos).a;
       return color;
     }

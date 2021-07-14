@@ -20,7 +20,8 @@
         "IS_SHADOW": false,
         "IS_NOISE": false,
         "IS_WATER": false,
-        "IS_TIGER": true
+        "IS_TIGER": true,
+        "USE_ALPHA_TEST": false
       },
       "props": {
         "size": {
